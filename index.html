@@ -10,72 +10,31 @@
 
 
 <head>
-
-
-
-<style>
-    /* Wikipedia-style dropdowns */
-    .auto-dropdown {
-        margin-bottom: 20px;
-        border-bottom: 1px solid #a2a9b1;
-        padding-bottom: 10px;
-    }
-    .auto-dropdown summary {
-        font-size: 27px;
-        font-weight: bold;
-        cursor: pointer;
-        list-style: none;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .auto-dropdown summary::after {
-        content: '[ show ]';
-        color: #0645ad;
-        font-size: 14px;
-        font-weight: normal;
-    }
-    .auto-dropdown[open] summary::after {
-        content: '[ hide ]';
-    }
-
-    /* Fixed "Back to Top" Button */
-    #back-to-top-btn {
-        position: fixed;    /* This makes it stay on screen */
-        right: 20px;
-        bottom: 20px;
-        z-index: 9999;
-        background-color: #0b7dda;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 16px;
-        cursor: pointer;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        opacity: 0;         /* Hidden at top */
-        visibility: hidden;
-        transition: opacity 0.3s, visibility 0.3s;
-    }
-    #back-to-top-btn.show {
-        opacity: 1;
-        visibility: visible;
-    }
-</style>
-
-
     <meta charset="UTF-8">
     <title>Working Custom Glossary Example</title>
     
-
-
-
-<button id="back-to-top-btn" aria-label="Back to Top">↑ Top</button>
-
-
-
-
+    <style>
+        .term-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #definition-popup {
+            display: none; /* Initially hidden */
+            position: absolute;
+            z-index: 1000;
+            max-width: 300px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+        #popup-content {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
 
@@ -127,7 +86,111 @@
 </div>
 
 
+<script>
+  // ------------------------------------------------------------
+  // CONFIGURATION
+  // ------------------------------------------------------------
+  const SECTION_HEADING_SELECTOR = `
+    section > strong, section > b,
+    article > strong, article > b,
+    div > strong, div > b,
+    main > strong, main > b,
+    body > strong, body > b
+  `.replace(/\s+/g, '');
+
+  const PARA_BOLD_SELECTOR = 'p strong, p b';   // <p><b>…</b></p>
+
+  // ------------------------------------------------------------
+  // HELPERS
+  // ------------------------------------------------------------
+  function makeId(text, idx) {
+    const base = text.toLowerCase()
+      .replace(/[^\w]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    let id = base || `item-${idx}`;
+    let counter = 1;
+    while (document.getElementById(id)) {
+      id = `${base}-${counter++}`;
+    }
+    return id;
+  }
+
+  function buildTOC(containerId, selector, titlePrefix = '') {
+    const container = document.getElementById(containerId);
+    const elements = document.querySelectorAll(selector);
+    if (!elements.length) {
+      container.innerHTML = '<em>No items found.</em>';
+      return;
+    }
+
+    const ol = document.createElement('ol');
+    ol.style.paddingLeft = '1.5rem';
+
+    elements.forEach((el, idx) => {
+      const text = el.textContent.trim();
+      if (!text) return;
+
+      // ---- Wrap in container (only once) ----
+      const parent = el.parentNode;
+      if (!parent.classList.contains('toc-container')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'toc-container';
+        parent.insertBefore(wrapper, el);
+        wrapper.appendChild(el);
+      }
+
+      // ---- Assign ID ----
+      let id = el.id;
+      if (!id) {
+        id = makeId(text, idx);
+        el.id = id;
+      }
+
+      // ---- List item ----
+      const li = document.createElement('li');
+      li.style.margin = '0.2rem 0';
+
+      const a = document.createElement('a');
+      a.href = `#${id}`;
+      a.textContent = (titlePrefix ? `${titlePrefix} ` : '') + text;
+      a.style.textDecoration = 'none';
+      a.style.color = '#1a0dab';
+      a.onmouseover = () => a.style.textDecoration = 'underline';
+      a.onmouseout  = () => a.style.textDecoration = 'none';
+
+      li.appendChild(a);
+      ol.appendChild(li);
+    });
+
+    container.appendChild(ol);
+  }
+
+  // ------------------------------------------------------------
+  // RUN AFTER PAGE LOAD
+  // ------------------------------------------------------------
+  function initTOCs() {
+    buildTOC('toc-main', SECTION_HEADING_SELECTOR);
+    buildTOC('toc-para', PARA_BOLD_SELECTOR, '!');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTOCs);
+  } else {
+    initTOCs();
+  }
+</script>
+
 <!-- Optional: Style the containers -->
+<style>
+  .toc-container {
+    margin: 1.5rem 0;
+    padding: 0.5rem 0 0.5rem 0.8rem;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+    border-radius: 0 4px 4px 0;
+  }
+</style>
+
 
 
 
@@ -12864,8 +12927,60 @@ The last thing that citizens are reminded of at the end of their [revolutionary 
 
 
 
+<!-- Return to TOC button -->
+<style>
+  #return-toc-btn {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9999;
+    background: #0b7dda;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 15px 20px;
+
+<!-- Bookworm -->
+
+
+
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transition: transform .12s ease, opacity .12s ease;
+  }
+  #return-toc-btn:hover { transform: translateY(-2px); }
+  #return-toc-btn:active { transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #return-toc-btn { transition: none; } }
+</style>
 
 <button id="return-toc-btn" aria-label="Return to table of contents">table2</button>
+
+<script>
+  (function(){
+    const btn = document.getElementById('return-toc-btn');
+    function scrollToTOC(){
+      const target = document.getElementById('table-of-contents') || document.documentElement;
+      if ('scrollBehavior' in document.documentElement.style) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // fallback
+        window.scrollTo(0, 0);
+      }
+    }
+    btn.addEventListener('click', scrollToTOC);
+
+    // Optional: hide button when already near top
+    function toggleVisibility(){
+      const threshold = 200;
+      if (window.scrollY > threshold) btn.style.opacity = '1';
+      else btn.style.opacity = '0.35';
+    }
+    toggleVisibility();
+    window.addEventListener('scroll', toggleVisibility, { passive: true });
+  })();
+</script>
+
 
 
 
@@ -12893,7 +13008,36 @@ The last thing that citizens are reminded of at the end of their [revolutionary 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Back to Top Button</title>
+  <style>
+    /* Button style */
+    #backToTop {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      padding: 30px 15px;
+      background: #013898d4;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 22px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
 
+    #backToTop:focus {
+      outline: 3px solid #005a9e;
+      outline-offset: 2px;
+    }
+
+    /* Optional: hide until user scrolls down 200px */
+    #backToTop.hidden {
+      display: none;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
 </head>
 <body>
 
@@ -12905,15 +13049,29 @@ The last thing that citizens are reminded of at the end of their [revolutionary 
   <button id="backToTop" class="hidden" aria-label="Scroll to top">
     table1
     <br>
-    
+    .
   </button>
 
+  <script>
+    const btn = document.getElementById('backToTop');
+
+    // Show button only after scrolling down a bit
+    window.addEventListener('scroll', () => {
+      btn.classList.toggle('hidden', window.scrollY < 200);
+    });
+
+    // Scroll to top when clicked
+    btn.addEventListener('click', () => {
+      // Modern smooth scroll
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Fallback for very old browsers (uncomment if needed)
+      // window.scrollTo(0, 0);
+    });
+
+    // Allow Enter/Space to activate if focused (button already supports this by default)
+  </script>
 </body>
-
-
-
-
-
 </html>
 
 
@@ -13591,78 +13749,151 @@ xxxxxxxxx
         
     </div>
 
-<button id="back-to-top-btn" aria-label="Back to Top">↑ Top</button>
+    <script>
+        const popup = document.getElementById('definition-popup');
 
+        function getDefsText() {
+            const defsElement = document.getElementById('definition-list');
+            if (defsElement) {
+                return defsElement.textContent;
+            }
+            return ""; 
+        }
 
+        // ------------------------------------------------------------------
+        // THE FIXED getDefinition FUNCTION (No Colon required)
+        // ------------------------------------------------------------------
+        function getDefinition(term, defsText) {
+            const escapedTerm = term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+            // FIX: Replaced ': *' with '\\s+'
+            // \\s+ : matches one or more whitespace characters (including newlines)
+            // This allows the definition to start on a new line without a colon.
+            const regex = new RegExp(
+                '\\[ *' + escapedTerm + ' *\\]\\s+([\\s\\S]*?)(?=\\n\\[|$)',
+                'im'
+            );
+
+            const match = defsText.match(regex);
+            
+            return match ? match[1].trim() : null;
+        }
+
+        // Helper to display the pop-up (Updated to convert \n to <br> for rendering)
+        function showPopup(def, linkElement) {
+            const rect = linkElement.getBoundingClientRect();
+            
+            // Set position relative to the clicked link
+            popup.style.left = (window.scrollX + rect.left) + 'px';
+            popup.style.top = (window.scrollY + rect.bottom + 5) + 'px';
+
+            // Convert newlines in the plain-text definition to <br> tags for formatting
+            const formattedDef = def.replace(/\n/g, '<br>');
+
+            document.getElementById('popup-content').innerHTML = `<strong>${linkElement.textContent}:</strong><br>${formattedDef}`;
+            
+            // Display
+            popup.style.display = 'block';
+            popup.setAttribute('data-current-term', linkElement.dataset.term);
+        }
+
+        // Helper to hide the pop-up
+        function hidePopup() {
+            popup.style.display = 'none';
+            popup.removeAttribute('data-current-term');
+        }
+
+        // The function that wraps bracketed terms in <span> elements (Unchanged)
+        function wrapBracketedTerms() {
+            const regex = /(\[[^\]]+\])/g;
+
+            const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT,
+                { 
+                    acceptNode: function(node) {
+                        if (node.parentNode.matches('script, #definition-popup *, #definition-list *')) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                },
+                false
+            );
+
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+
+            textNodes.forEach(textNode => {
+                const text = textNode.nodeValue;
+                const parent = textNode.parentNode;
+                const fragment = document.createDocumentFragment();
+                let lastIndex = 0;
+
+                regex.lastIndex = 0;
+                let match;
+                
+                while ((match = regex.exec(text)) !== null) {
+                    if (match.index > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                    }
+
+                    const link = document.createElement('span');
+                    link.className = 'term-link';
+                    link.dataset.term = match[0].slice(1, -1).trim(); 
+                    link.textContent = match[0];
+                    fragment.appendChild(link);
+
+                    lastIndex = regex.lastIndex;
+                }
+
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+                }
+
+                if (fragment.childNodes.length > 0) {
+                    parent.replaceChild(fragment, textNode);
+                }
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            wrapBracketedTerms();
+            const defsText = getDefsText(); 
+
+            document.querySelectorAll('.term-link').forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    
+                    const term = this.dataset.term; 
+                    const def = getDefinition(term, defsText);
+
+                    if (def) {
+                        if (popup.style.display === 'block' && popup.getAttribute('data-current-term') === term) {
+                            hidePopup();
+                        } else {
+                            showPopup(def, this);
+                        }
+                    } else {
+                        alert('Definition not found for : ' + term + ' : \n \n Sometimes this happens. \n \n Please look for the same term in another section of this document and click it. That should resolve the issue. Thanks :-)'); 
+                    }
+                });
+            });
+            
+            // Hide pop-up if user clicks anywhere else
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.term-link') && !event.target.closest('#definition-popup')) {
+                    hidePopup();
+                }
+            });
+        });
+
+    </script>
 </body>
-
-<button id="back-to-top-btn">↑ Top</button>
-
-
-
-<script>
-// 1. Wikipedia Logic: Wraps bold text into dropdowns
-function automateWikipediaDropdowns() {
-    const headings = document.querySelectorAll('body > b, section > b, p > b');
-    headings.forEach((heading) => {
-        const details = document.createElement('details');
-        details.className = 'auto-dropdown';
-        const summary = document.createElement('summary');
-        
-        heading.parentNode.insertBefore(details, heading);
-        summary.appendChild(heading);
-        details.appendChild(summary);
-
-        let next = details.nextSibling;
-        while (next && !(next.tagName === 'B' || (next.querySelector && next.querySelector('b')))) {
-            let temp = next;
-            next = next.nextSibling;
-            details.appendChild(temp);
-        }
-    });
-}
-
-// 2. TOC Logic: Builds the clickable menu
-function buildTOC(containerId, selector) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const elements = document.querySelectorAll(selector);
-    const ol = document.createElement('ol');
-    elements.forEach((el, idx) => {
-        const text = el.textContent.trim();
-        if (!text) return;
-        let id = el.id || (el.id = "section-" + idx);
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = `#${id}`;
-        a.textContent = text;
-        li.appendChild(a);
-        ol.appendChild(li);
-    });
-    container.innerHTML = ''; 
-    container.appendChild(ol);
-}
-
-// 3. Initialize everything when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    automateWikipediaDropdowns(); // First: Create the dropdowns
-    buildTOC('toc-para', 'summary'); // Second: Link TOC to those dropdowns
-
-    // 4. Back to Top Button Logic
-    const topBtn = document.getElementById('back-to-top-btn');
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 400) {
-            topBtn.classList.add('show');
-        } else {
-            topBtn.classList.remove('show');
-        }
-    });
-    topBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-</script>
-
-
-
 </html>
 
  
